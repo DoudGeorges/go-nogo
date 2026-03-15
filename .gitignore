@@ -1,0 +1,25 @@
+# Data files (preserve empty folders via .gitkeep)
+data/participants/*.csv
+data/trials/*.csv
+
+# Project documentation (private)
+miro.md
+
+# Audio files (too large for Git)
+*.wav
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
