@@ -403,13 +403,13 @@ def run_trial(trial_info: dict, condition_csv: str, trial_num: int,
     # Phase 3: Feedback (practice only) + post-response blank
     if feedback:
         if is_go and response_key is None:
-            feedback_stim.text = "Trop lent\u00a0!"
+            feedback_stim.text = "Trop lent"
             feedback_stim.color = "orange"
         elif correct:
-            feedback_stim.text = "Bonne réponse\u00a0!"
+            feedback_stim.text = "Bonne réponse"
             feedback_stim.color = "lime"
         else:
-            feedback_stim.text = "Mauvaise réponse\u00a0!"
+            feedback_stim.text = "Mauvaise réponse"
             feedback_stim.color = "red"
         feedback_stim.draw()
         win.flip()

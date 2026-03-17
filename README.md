@@ -1,4 +1,4 @@
-# Go/No-Go ERP Experiment
+# Go/No-Go Experiment
 
 A PsychoPy experiment developed as part of a neuroscience course. The goal is to investigate whether different types of background music affect cognitive performance (specifically impulsivity and concentration) during a Go/No-Go task.
 

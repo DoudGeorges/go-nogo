@@ -2,9 +2,6 @@
 data/participants/*.csv
 data/trials/*.csv
 
-# Project documentation (private)
-miro.md
-
 # Audio files (too large for Git)
 *.wav
 
