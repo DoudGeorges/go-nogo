@@ -4,7 +4,6 @@ import datetime
 import ctypes
 from pathlib import Path
 
-# Windows + Nvidia GPU: prevent blurry text and slow fullscreen toggling
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
 except Exception:
@@ -138,7 +137,6 @@ trial_csv_path = TRIALS_DIR / f"{participant_id}.csv"
 trial_csv_file = None
 trial_csv_writer = None
 
-# Borderless windowed fullscreen — avoids NVIDIA overlay intercepting true fullscreen
 _user32 = ctypes.windll.user32
 _screen_w = _user32.GetSystemMetrics(0)
 _screen_h = _user32.GetSystemMetrics(1)
@@ -156,7 +154,6 @@ win = visual.Window(
 )
 win.mouseVisible = False
 
-# Force the window above the taskbar
 import pyglet
 _hwnd = win.winHandle._hwnd
 _SWP_NOSIZE = 0x0001
@@ -171,7 +168,6 @@ visual.TextStim(
 win.flip()
 core.wait(0.5)
 
-# Open trial CSV only after the window is confirmed working
 trial_csv_file = open(trial_csv_path, "w", newline="", encoding="utf-8-sig")
 trial_csv_writer = csv.DictWriter(trial_csv_file, fieldnames=TRIAL_COLUMNS)
 trial_csv_writer.writeheader()
@@ -367,7 +363,6 @@ def run_trial(trial_info: dict, condition_csv: str, trial_num: int,
     send_marker("fixation_onset")
     wait_or_escape(random.uniform(FIXATION_MIN, FIXATION_MAX))
 
-    # Phase 1: Brief stimulus flash
     event.clearEvents()
     stimulus_stim.text = trial_info["stimulus"]
     stimulus_stim.draw()
@@ -400,7 +395,6 @@ def run_trial(trial_info: dict, condition_csv: str, trial_num: int,
     is_go = trial_info["trial_type"] == "go"
     correct = (is_go and response_key is not None) or (not is_go and response_key is None)
 
-    # Phase 3: Feedback (practice only) + post-response blank
     if feedback:
         if is_go and response_key is None:
             feedback_stim.text = "Trop lent"
@@ -436,10 +430,6 @@ def write_trial_row(result: dict, block_num: int):
     trial_csv_writer.writerow(row)
     trial_csv_file.flush()
 
-
-# ---------------------------------------------------------------------------
-# Main experiment flow — wrapped in try/finally for robust cleanup
-# ---------------------------------------------------------------------------
 
 try:
     show_screen(CONSENT_TEXT, keys=["space"], stim=consent_stim)
@@ -509,7 +499,6 @@ try:
 
     show_screen(INSTRUCTIONS, keys=["space"])
 
-    # Practice block
     practice_n_go = max(1, int(PRACTICE_TRIALS * 0.75))
     practice_n_nogo = max(1, PRACTICE_TRIALS - practice_n_go)
     practice_trials = generate_trials(practice_n_go, practice_n_nogo)
@@ -531,7 +520,6 @@ try:
         keys=["space"],
     )
 
-    # Main experimental blocks
     block_order = CONDITIONS.copy()
     random.shuffle(block_order)
     exp_info["block_order"] = ",".join(
@@ -559,7 +547,6 @@ try:
         audio_playing = False
         if audio is not None:
             try:
-                # PTB backend requires a non-negative int for loops
                 audio.play(loops=999)
                 audio_playing = True
             except Exception:
@@ -611,7 +598,6 @@ try:
     core.quit()
 
 finally:
-    # Guarantee cleanup even on unexpected exceptions
     if trial_csv_file and not trial_csv_file.closed:
         trial_csv_file.close()
     try:
