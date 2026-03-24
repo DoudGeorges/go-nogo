@@ -1,0 +1,4 @@
+condition,label,audio_file,n_trials,go_ratio
+silence,Silence,,32,0.75
+no_lyrics,Musique sans paroles,no_lyrics.wav,32,0.75
+lyrics,Musique avec paroles,lyrics.wav,32,0.75

@@ -1,5 +1,6 @@
 import csv
 import random
+import time
 import datetime
 import ctypes
 from pathlib import Path
@@ -9,7 +10,19 @@ try:
 except Exception:
     pass
 
-from psychopy import visual, core, event, sound, logging
+try:
+    from psychopy import visual, core, event, sound, logging
+except ModuleNotFoundError:
+    print("PsychoPy introuvable.")
+    print()
+    print("Pour lancer manuellement :")
+    print("  1. Ouvrir PsychoPy")
+    print("  2. Aller en mode Coder")
+    print("  3. Ouvrir go_nogo.py")
+    print("  4. Cliquer sur le bouton vert")
+    print()
+    input("Appuyez sur une touche pour continuer . . . ")
+    raise SystemExit(1)
 
 logging.console.setLevel(logging.ERROR)
 
@@ -23,26 +36,10 @@ BASELINE_DUR = 2.000
 
 GO_STIMULUS = "M"
 NOGO_STIMULUS = "W"
-TRIALS_PER_BLOCK = 8  # 240
-PRACTICE_TRIALS = 2  # 8
+PRACTICE_TRIALS = 4
 RESPONSE_KEY = "space"
 
-AUDIO_FILES = {
-    "musique_sans_paroles": "no_lyrics.wav",
-    "musique_avec_paroles": "lyrics.wav",
-    "silence": None,
-}
-CONDITIONS = ["silence", "musique_sans_paroles", "musique_avec_paroles"]
-CONDITION_LABELS = {
-    "silence": "Silence",
-    "musique_sans_paroles": "Musique sans paroles",
-    "musique_avec_paroles": "Musique avec paroles",
-}
-CONDITION_CSV = {
-    "silence": "silence",
-    "musique_sans_paroles": "no_lyrics",
-    "musique_avec_paroles": "lyrics",
-}
+CONDITIONS_CSV = "conditions.csv"
 
 FONT = "Arial"
 COLOR_BG = [-1, -1, -1]
@@ -75,6 +72,8 @@ TRIAL_COLUMNS = [
     "accuracy",
     "stimulus_time",
     "response_time",
+    "stimulus_iso",
+    "stimulus_unix",
 ]
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -87,8 +86,30 @@ TRIALS_DIR.mkdir(parents=True, exist_ok=True)
 _lsl_outlet = None
 
 
+def load_conditions(csv_path: Path) -> list:
+    required = {"condition", "label", "n_trials", "go_ratio"}
+    rows = []
+    with open(csv_path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        if not required.issubset(set(reader.fieldnames or [])):
+            missing = required - set(reader.fieldnames or [])
+            raise ValueError(
+                f"conditions.csv is missing required columns: {missing}"
+            )
+        for row in reader:
+            rows.append({
+                "condition": row["condition"].strip(),
+                "label": row["label"].strip(),
+                "audio_file": row.get("audio_file", "").strip() or None,
+                "n_trials": int(row["n_trials"]),
+                "go_ratio": float(row["go_ratio"]),
+            })
+    if not rows:
+        raise ValueError("conditions.csv contains no rows")
+    return rows
+
+
 def init_lsl():
-    """Initialize LSL outlet when USE_LSL is enabled."""
     global _lsl_outlet
     if not USE_LSL:
         return
@@ -113,8 +134,7 @@ def generate_trials(n_go: int, n_nogo: int) -> list:
     return trials
 
 
-def load_audio(condition: str):
-    filename = AUDIO_FILES.get(condition)
+def load_audio(filename: str | None):
     if filename is None:
         return None
     filepath = SCRIPT_DIR / filename
@@ -154,7 +174,7 @@ win = visual.Window(
 )
 win.mouseVisible = False
 
-import pyglet
+
 _hwnd = win.winHandle._hwnd
 _SWP_NOSIZE = 0x0001
 _SWP_NOMOVE = 0x0002
@@ -198,7 +218,6 @@ init_lsl()
 
 
 def abort_and_cleanup():
-    """Delete partial data files and close everything. Idempotent."""
     if trial_csv_file and not trial_csv_file.closed:
         trial_csv_file.close()
     if trial_csv_path.exists():
@@ -213,7 +232,6 @@ def abort_and_cleanup():
 
 
 def wait_or_escape(duration):
-    """Clock-based wait that polls for ESC every ~50 ms."""
     timer = core.CountdownTimer(duration)
     while timer.getTime() > 0:
         if event.getKeys(keyList=["escape"]):
@@ -368,6 +386,8 @@ def run_trial(trial_info: dict, condition_csv: str, trial_num: int,
     stimulus_stim.draw()
     win.flip()
     onset_time = global_clock.getTime()
+    onset_iso = datetime.datetime.now().isoformat()
+    onset_unix = time.time()
     trial_clock.reset()
     send_marker(f"stimulus_onset_{trial_info['trial_type']}")
 
@@ -421,6 +441,8 @@ def run_trial(trial_info: dict, condition_csv: str, trial_num: int,
         "accuracy": 1 if correct else 0,
         "stimulus_time": round(onset_time, 6),
         "response_time": round(response_time, 6) if response_time else "",
+        "stimulus_iso": onset_iso,
+        "stimulus_unix": onset_unix,
     }
 
 
@@ -520,10 +542,11 @@ try:
         keys=["space"],
     )
 
-    block_order = CONDITIONS.copy()
+    conditions = load_conditions(SCRIPT_DIR / CONDITIONS_CSV)
+    block_order = conditions.copy()
     random.shuffle(block_order)
     exp_info["block_order"] = ",".join(
-        CONDITION_CSV[c] for c in block_order
+        cond["condition"] for cond in block_order
     )
 
     with open(participant_csv_path, "w", newline="", encoding="utf-8-sig") as pf:
@@ -531,8 +554,9 @@ try:
         pw.writeheader()
         pw.writerow(exp_info)
 
-    for block_idx, condition in enumerate(block_order, start=1):
-        label = CONDITION_LABELS[condition]
+    for block_idx, cond in enumerate(block_order, start=1):
+        label = cond["label"]
+        condition_key = cond["condition"]
 
         show_screen(
             f"Bloc {block_idx} / {len(block_order)} - {label}\n\n"
@@ -543,31 +567,31 @@ try:
             keys=["space"],
         )
 
-        audio = load_audio(condition)
+        audio = load_audio(cond["audio_file"])
         audio_playing = False
         if audio is not None:
             try:
                 audio.play(loops=999)
                 audio_playing = True
             except Exception:
-                logging.warning(f"Could not play audio for condition '{condition}'")
+                logging.warning(f"Could not play audio for condition '{condition_key}'")
 
-        send_marker(f"baseline_start_{condition}")
+        send_marker(f"baseline_start_{condition_key}")
         fixation_stim.draw()
         win.flip()
         wait_or_escape(BASELINE_DUR)
-        send_marker(f"baseline_end_{condition}")
+        send_marker(f"baseline_end_{condition_key}")
 
-        send_marker(f"block_start_{condition}")
-        n_go = max(1, int(TRIALS_PER_BLOCK * 0.75))
-        n_nogo = max(1, TRIALS_PER_BLOCK - n_go)
+        send_marker(f"block_start_{condition_key}")
+        n_go = max(1, int(cond["n_trials"] * cond["go_ratio"]))
+        n_nogo = max(1, cond["n_trials"] - n_go)
         trials = generate_trials(n_go, n_nogo)
 
         for trial_num, trial_data in enumerate(trials, start=1):
-            result = run_trial(trial_data, CONDITION_CSV[condition], trial_num)
+            result = run_trial(trial_data, condition_key, trial_num)
             write_trial_row(result, block_idx)
 
-        send_marker(f"block_end_{condition}")
+        send_marker(f"block_end_{condition_key}")
 
         if audio_playing and audio is not None:
             try:
