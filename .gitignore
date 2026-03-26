@@ -1,5 +1,4 @@
-data/participants/*.csv
-data/trials/*.csv
+data/*.csv
 *.wav
 __pycache__/
 *.pyc

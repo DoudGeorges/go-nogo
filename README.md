@@ -1,12 +1,8 @@
 # Go/No-Go Experiment
 
-A PsychoPy experiment investigating how different types of background music affect cognitive performance (impulsivity and concentration) during a Go/No-Go task.
+PsychoPy Go/No-Go task built for a neuroscience class, measuring the effect of background music on impulsivity and concentration.
 
-Participants complete the task under three auditory conditions (silence, music with lyrics, and music without lyrics) in a randomized order. We record both behavioral data (reaction time, accuracy) and brain activity (EEG via the Muse headband) to compare performance across conditions.
-
-Each participant reads a consent form, answers a short questionnaire, completes a practice block with feedback, and then completes three experimental blocks in randomized order.
-
-Block parameters (conditions, trial counts, go/nogo ratio) are defined in `conditions.csv`.
+Three auditory conditions (silence, lyrics, no lyrics) are presented in random order. Behavioral data (RT, accuracy) and EEG (Muse headband) are recorded for each trial.
 
 ## Requirements
 
@@ -15,32 +11,19 @@ Block parameters (conditions, trial counts, go/nogo ratio) are defined in `condi
 
 ## Usage
 
-Double-click `lancer_experience.bat`, or run manually:
-
 ```bash
 python go_nogo.py
 ```
 
-See `LISEZMOI.txt` for detailed instructions.
-
 ## Input
 
-`conditions.csv` defines each experimental block:
-
-| Column | Description |
-|---|---|
-| `condition` | Internal condition key |
-| `label` | Display name shown to participants |
-| `audio_file` | Audio filename (empty for silence) |
-| `n_trials` | Number of trials in the block |
-| `go_ratio` | Proportion of Go trials (e.g. 0.75) |
+`conditions.csv` defines the experimental blocks (one row per condition).
 
 ## Output
 
-Each session generates two CSV files in `data/`, named by session timestamp (e.g. `20260315_0034.csv`):
+Each session generates a single CSV file in `data/`, named by session timestamp (e.g. `20260325_2149.csv`).
 
-- `data/participants/` — demographics, questionnaire responses, and block order
-- `data/trials/` — per-trial data including condition, reaction time, accuracy, and EEG sync timestamps
+Each row is one trial and contains the condition, reaction time, accuracy, and EEG sync timestamps. Participant demographics, questionnaire responses, and block order are included in the first row.
 
 ## License
 

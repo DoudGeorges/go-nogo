@@ -54,15 +54,7 @@ SIZE_STIMULUS = 0.15
 SIZE_FIXATION = 0.08
 WRAP = 1.4
 
-PARTICIPANT_COLUMNS = [
-    "age",
-    "gender",
-    "music_frequency",
-    "studies_with_music",
-    "concentration_effect",
-    "block_order",
-]
-TRIAL_COLUMNS = [
+COLUMNS = [
     "block",
     "condition",
     "trial",
@@ -74,14 +66,17 @@ TRIAL_COLUMNS = [
     "response_time",
     "stimulus_iso",
     "stimulus_unix",
+    "age",
+    "gender",
+    "music_frequency",
+    "studies_with_music",
+    "concentration_effect",
+    "block_order",
 ]
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
-PARTICIPANTS_DIR = DATA_DIR / "participants"
-TRIALS_DIR = DATA_DIR / "trials"
-PARTICIPANTS_DIR.mkdir(parents=True, exist_ok=True)
-TRIALS_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 _lsl_outlet = None
 
@@ -151,11 +146,11 @@ _now = datetime.datetime.now()
 participant_id = _now.strftime("%Y%m%d_%H%M")
 exp_info = {}
 
-participant_csv_path = PARTICIPANTS_DIR / f"{participant_id}.csv"
-trial_csv_path = TRIALS_DIR / f"{participant_id}.csv"
+csv_path = DATA_DIR / f"{participant_id}.csv"
 
-trial_csv_file = None
-trial_csv_writer = None
+csv_file = None
+csv_writer = None
+_first_trial = True
 
 _user32 = ctypes.windll.user32
 _screen_w = _user32.GetSystemMetrics(0)
@@ -188,9 +183,9 @@ visual.TextStim(
 win.flip()
 core.wait(0.5)
 
-trial_csv_file = open(trial_csv_path, "w", newline="", encoding="utf-8-sig")
-trial_csv_writer = csv.DictWriter(trial_csv_file, fieldnames=TRIAL_COLUMNS)
-trial_csv_writer.writeheader()
+csv_file = open(csv_path, "w", newline="", encoding="utf-8-sig")
+csv_writer = csv.DictWriter(csv_file, fieldnames=COLUMNS)
+csv_writer.writeheader()
 
 fixation_stim = visual.TextStim(
     win, text="+", height=SIZE_FIXATION, color=COLOR_TEXT, font=FONT,
@@ -218,12 +213,10 @@ init_lsl()
 
 
 def abort_and_cleanup():
-    if trial_csv_file and not trial_csv_file.closed:
-        trial_csv_file.close()
-    if trial_csv_path.exists():
-        trial_csv_path.unlink()
-    if participant_csv_path.exists():
-        participant_csv_path.unlink()
+    if csv_file and not csv_file.closed:
+        csv_file.close()
+    if csv_path.exists():
+        csv_path.unlink()
     try:
         win.close()
     except Exception:
@@ -447,10 +440,14 @@ def run_trial(trial_info: dict, condition_csv: str, trial_num: int,
 
 
 def write_trial_row(result: dict, block_num: int):
+    global _first_trial
     row = {"block": block_num}
     row.update(result)
-    trial_csv_writer.writerow(row)
-    trial_csv_file.flush()
+    if _first_trial:
+        row.update(exp_info)
+        _first_trial = False
+    csv_writer.writerow(row)
+    csv_file.flush()
 
 
 try:
@@ -549,10 +546,7 @@ try:
         cond["condition"] for cond in block_order
     )
 
-    with open(participant_csv_path, "w", newline="", encoding="utf-8-sig") as pf:
-        pw = csv.DictWriter(pf, fieldnames=PARTICIPANT_COLUMNS)
-        pw.writeheader()
-        pw.writerow(exp_info)
+
 
     for block_idx, cond in enumerate(block_order, start=1):
         label = cond["label"]
@@ -617,13 +611,13 @@ try:
         keys=["space"],
     )
 
-    trial_csv_file.close()
+    csv_file.close()
     win.close()
     core.quit()
 
 finally:
-    if trial_csv_file and not trial_csv_file.closed:
-        trial_csv_file.close()
+    if csv_file and not csv_file.closed:
+        csv_file.close()
     try:
         win.close()
     except Exception:
