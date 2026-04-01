@@ -1,9 +1,12 @@
 import csv
+import os
 import random
 import time
 import datetime
 import ctypes
 from pathlib import Path
+
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
@@ -11,17 +14,15 @@ except Exception:
     pass
 
 try:
-    from psychopy import prefs
-    prefs.hardware['audioLib'] = ['sounddevice']
-    from psychopy import visual, core, event, sound, logging
+    from psychopy import visual, core, event, logging
 except ModuleNotFoundError:
     print("PsychoPy introuvable.")
     print()
     print("Pour lancer manuellement :")
-    print("  1. Ouvrir PsychoPy")
-    print("  2. Aller en mode Coder")
-    print("  3. Ouvrir go_nogo.py")
-    print("  4. Cliquer sur le bouton vert")
+    print("1. Ouvrir PsychoPy")
+    print("2. Aller en mode Coder")
+    print("3. Ouvrir go_nogo.py")
+    print("4. Cliquer sur le bouton vert")
     print()
     input("Appuyez sur une touche pour continuer . . . ")
     raise SystemExit(1)
@@ -144,13 +145,12 @@ def load_audio(filename: str | None):
     if filename is None:
         return None
     filepath = SCRIPT_DIR / filename
-    try:
-        return sound.Sound(str(filepath))
-    except Exception:
+    if not filepath.exists():
         logging.warning(
             f"Audio file '{filepath}' not found - assuming external playback"
         )
         return None
+    return str(filepath)
 
 
 _now = datetime.datetime.now()
@@ -565,11 +565,15 @@ try:
             keys=["space"],
         )
 
-        audio = load_audio(cond["audio_file"])
+        audio_path = load_audio(cond["audio_file"])
         audio_playing = False
-        if audio is not None:
+        if audio_path is not None:
             try:
-                audio.play(loops=999)
+                import pygame.mixer as _mixer
+                if not _mixer.get_init():
+                    _mixer.init(frequency=48000, size=-16, channels=2, buffer=2048)
+                _mixer.music.load(audio_path)
+                _mixer.music.play(loops=-1)
                 audio_playing = True
             except Exception:
                 logging.warning(f"Could not play audio for condition '{condition_key}'")
@@ -593,9 +597,10 @@ try:
 
         send_marker(f"block_end_{condition_key}")
 
-        if audio_playing and audio is not None:
+        if audio_playing:
             try:
-                audio.stop()
+                import pygame.mixer as _mixer
+                _mixer.music.stop()
             except Exception:
                 pass
 

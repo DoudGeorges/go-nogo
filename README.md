@@ -8,6 +8,7 @@ Three auditory conditions (silence, lyrics, no lyrics) are presented in random o
 
 - Python 3.10+
 - [PsychoPy](https://www.psychopy.org/)
+- [Pygame](https://www.pygame.org/) (audio playback)
 
 ## Usage
 
@@ -27,4 +28,4 @@ Each row is one trial and contains the condition, reaction time, accuracy, and E
 
 ## License
 
-[MIT](LICENSE)
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
