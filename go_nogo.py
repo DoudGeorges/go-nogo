@@ -11,6 +11,8 @@ except Exception:
     pass
 
 try:
+    from psychopy import prefs
+    prefs.hardware['audioLib'] = ['sounddevice']
     from psychopy import visual, core, event, sound, logging
 except ModuleNotFoundError:
     print("PsychoPy introuvable.")
@@ -28,10 +30,9 @@ logging.console.setLevel(logging.ERROR)
 
 USE_LSL = False
 
-FIXATION_MIN = 0.800
-FIXATION_MAX = 1.200
+ITI_MIN = 0.800
+ITI_MAX = 1.200
 STIMULUS_DUR = 0.800
-POST_RESPONSE_DUR = 0.500
 BASELINE_DUR = 2.000
 
 GO_STIMULUS = "M"
@@ -51,7 +52,6 @@ SIZE_BODY = 0.040
 SIZE_HEADING = 0.050
 SIZE_HINT = 0.028
 SIZE_STIMULUS = 0.15
-SIZE_FIXATION = 0.08
 WRAP = 1.4
 
 COLUMNS = [
@@ -120,12 +120,23 @@ def send_marker(name: str):
     logging.data(f"MARKER: {name} @ {t:.6f}")
 
 
+def _has_consecutive_nogo(trials: list) -> bool:
+    for i in range(len(trials) - 1):
+        if trials[i]["trial_type"] == "nogo" and trials[i + 1]["trial_type"] == "nogo":
+            return True
+    return False
+
+
 def generate_trials(n_go: int, n_nogo: int) -> list:
     trials = (
         [{"stimulus": GO_STIMULUS, "trial_type": "go"} for _ in range(n_go)]
         + [{"stimulus": NOGO_STIMULUS, "trial_type": "nogo"} for _ in range(n_nogo)]
     )
-    random.shuffle(trials)
+    for _ in range(1000):
+        random.shuffle(trials)
+        if not _has_consecutive_nogo(trials):
+            return trials
+    logging.warning("Could not avoid consecutive no-go trials after 1000 attempts")
     return trials
 
 
@@ -187,9 +198,6 @@ csv_file = open(csv_path, "w", newline="", encoding="utf-8-sig")
 csv_writer = csv.DictWriter(csv_file, fieldnames=COLUMNS)
 csv_writer.writeheader()
 
-fixation_stim = visual.TextStim(
-    win, text="+", height=SIZE_FIXATION, color=COLOR_TEXT, font=FONT,
-)
 stimulus_stim = visual.TextStim(
     win, text="", height=SIZE_STIMULUS, color=COLOR_TEXT, font=FONT, bold=True,
 )
@@ -369,11 +377,6 @@ def ask_text_input(question: str, numeric_only: bool = False) -> str:
 
 def run_trial(trial_info: dict, condition_csv: str, trial_num: int,
               feedback: bool = False) -> dict:
-    fixation_stim.draw()
-    win.flip()
-    send_marker("fixation_onset")
-    wait_or_escape(random.uniform(FIXATION_MIN, FIXATION_MAX))
-
     event.clearEvents()
     stimulus_stim.text = trial_info["stimulus"]
     stimulus_stim.draw()
@@ -423,7 +426,7 @@ def run_trial(trial_info: dict, condition_csv: str, trial_num: int,
         wait_or_escape(0.8)
 
     win.flip()
-    wait_or_escape(POST_RESPONSE_DUR)
+    wait_or_escape(random.uniform(ITI_MIN, ITI_MAX))
 
     return {
         "condition": condition_csv,
@@ -518,10 +521,13 @@ try:
 
     show_screen(INSTRUCTIONS, keys=["space"])
 
-    practice_n_go = max(1, int(PRACTICE_TRIALS * 0.75))
+    practice_n_go = max(1, int(PRACTICE_TRIALS * 0.80))
     practice_n_nogo = max(1, PRACTICE_TRIALS - practice_n_go)
     practice_trials = generate_trials(practice_n_go, practice_n_nogo)
     correct_count = 0
+
+    win.flip()
+    wait_or_escape(random.uniform(ITI_MIN, ITI_MAX))
 
     for i, trial in enumerate(practice_trials, start=1):
         result = run_trial(trial, "practice", i, feedback=True)
@@ -546,17 +552,15 @@ try:
         cond["condition"] for cond in block_order
     )
 
-
-
     for block_idx, cond in enumerate(block_order, start=1):
         label = cond["label"]
         condition_key = cond["condition"]
 
         show_screen(
             f"Bloc {block_idx} / {len(block_order)} - {label}\n\n"
-            "Fixez la croix au centre de l'écran.\n"
+            "Fixez le centre de l'écran.\n"
             "La tâche commencera automatiquement\n"
-            "après une courte période de fixation.\n\n"
+            "après quelques secondes.\n\n"
             "Appuyez sur «\u00a0ESPACE\u00a0» pour commencer.",
             keys=["space"],
         )
@@ -571,7 +575,6 @@ try:
                 logging.warning(f"Could not play audio for condition '{condition_key}'")
 
         send_marker(f"baseline_start_{condition_key}")
-        fixation_stim.draw()
         win.flip()
         wait_or_escape(BASELINE_DUR)
         send_marker(f"baseline_end_{condition_key}")
@@ -580,6 +583,9 @@ try:
         n_go = max(1, int(cond["n_trials"] * cond["go_ratio"]))
         n_nogo = max(1, cond["n_trials"] - n_go)
         trials = generate_trials(n_go, n_nogo)
+
+        win.flip()
+        wait_or_escape(random.uniform(ITI_MIN, ITI_MAX))
 
         for trial_num, trial_data in enumerate(trials, start=1):
             result = run_trial(trial_data, condition_key, trial_num)
