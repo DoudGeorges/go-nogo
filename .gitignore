@@ -1,13 +1,9 @@
-data/*.csv
+data/
+muse/
 *.wav
 __pycache__/
 *.pyc
-*.pyo
-*.egg-info/
-dist/
-build/
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-muse/
