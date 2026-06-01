@@ -1,8 +1,10 @@
 # Go/No-Go Experiment
 
-PsychoPy Go/No-Go task built for a neuroscience class, measuring the effect of background music on impulsivity and concentration.
+A Go/No-Go task built with PsychoPy to measure the effect of music, with and without lyrics, on inhibitory control. This study was conducted for a neuroscience class, under the supervision of Dr. Hélène Nadeau, and was selected for presentation at the 2026 SALTISE Conference.
 
 Three auditory conditions (silence, lyrics, no lyrics) are presented in random order. Behavioral data (RT, accuracy) and EEG (Muse headband) are recorded for each trial.
+
+Check out the final research paper in French [here](./paper.pdf).
 
 ## Requirements
 
